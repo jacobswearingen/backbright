@@ -1,0 +1,20 @@
+#!/sbin/openrc-run
+# Copyright 2025 Gentoo Authors
+# Distributed under the terms of the GNU General Public License v2
+
+name="backbright-perms daemon"
+description=""
+command=/usr/bin/backbright-perms
+command_args="${backbright-perms_args}"
+
+depend() {
+	need localmount
+}
+start() {
+	ebegin "Setting permissions for backlight and keyboard brightness"
+	chgrp video /sys/class/backlight/intel_backlight/brightness
+	chmod g+w /sys/class/backlight/intel_backlight/brightness
+	chgrp video /sys/class/leds/*kbd_backlight*/brightness
+	chmod g+w /sys/class/leds/*kbd_backlight*/brightness
+	eend $?
+}
