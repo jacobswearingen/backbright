@@ -1,0 +1,12 @@
+#!/bin/sh
+# Copyright 2025 Gentoo Authors
+# Distributed under the terms of the GNU General Public License v2
+#
+# Install to /etc/local.d/backbright-perms.start and ensure the "local"
+# service is enabled:  rc-update add local default
+
+for f in /sys/class/backlight/*/brightness /sys/class/leds/*kbd_backlight*/brightness; do
+	[ -e "$f" ] || continue
+	chgrp video "$f"
+	chmod g+w "$f"
+done
