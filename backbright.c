@@ -5,53 +5,54 @@
 #define BRIGHTNESS_FILE "/sys/class/backlight/intel_backlight/brightness"
 #define MAX_BRIGHTNESS_FILE "/sys/class/backlight/intel_backlight/max_brightness"
 
-long read_value(const char *path) {
+static void usage(const char *prog) {
+    fprintf(stderr, "Usage: %s inc | dec | set <percentage>\n", prog);
+    exit(1);
+}
+
+static long read_value(const char *path) {
     FILE *f = fopen(path, "r");
-    if (!f) {
-        perror("Error opening file");
-        exit(1);
-    }
     long value;
-    if (fscanf(f, "%ld", &value) != 1) {
-        perror("Error reading value");
-        fclose(f);
+    if (!f || fscanf(f, "%ld", &value) != 1) {
+        fprintf(stderr, "backbright: cannot read %s\n", path);
         exit(1);
     }
     fclose(f);
     return value;
 }
 
-void write_value(const char *path, long value) {
+static void write_value(const char *path, long value) {
     FILE *f = fopen(path, "w");
     if (!f) {
         perror("Error writing brightness");
         exit(1);
     }
-    fprintf(f, "%ld\n", value);
+    fprintf(f, "%ld", value);
     fclose(f);
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s inc | dec | set <percentage>\n", argv[0]);
-        return 1;
-    }
+    if (argc < 2)
+        usage(argv[0]);
 
+    
     const char *direction = argv[1];
     const long current = read_value(BRIGHTNESS_FILE);
     const long max = read_value(MAX_BRIGHTNESS_FILE);
-    long new = current;
+    const long floor = max / 100; /* 1% of range, scales with hardware */
+    long new;
 
     if (strcmp(direction, "inc") == 0) {
-        new = current * 3 / 2;
+        new = current * 2;
         if (new > max)
             new = max;
-        if (new < 5) 
-            new = 5;
+        if (new < floor)
+            new = floor;
 
     } else if (strcmp(direction, "dec") == 0) {
-        new = current * 2 / 3;
-        if (new < 5) new = 0;
+        new = current / 2;
+        if (new < floor)
+            new = (current > floor) ? floor : 0;
 
     } else if (strcmp(direction, "set") == 0) {
         if (argc < 3) {
@@ -59,18 +60,17 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        int magnitude = atoi(argv[2]);
-        if (magnitude < 0 || magnitude > 100) {
+        char *end;
+        long magnitude = strtol(argv[2], &end, 10);
+        if (*end != '\0' || magnitude < 0 || magnitude > 100) {
             fprintf(stderr, "Error: Magnitude must be an integer between 0 and 100.\n");
             return 1;
         }
 
         new = max * magnitude / 100;
-        if (new < 0) new = 0;
 
     } else {
-        fprintf(stderr, "Usage: %s inc | dec | set <percentage>\n", argv[0]);
-        return 1;
+        usage(argv[0]);
     }
 
     write_value(BRIGHTNESS_FILE, new);
